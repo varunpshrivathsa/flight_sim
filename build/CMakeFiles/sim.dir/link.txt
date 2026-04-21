@@ -1,0 +1,1 @@
+/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -L/opt/homebrew/opt/qt@5/lib CMakeFiles/sim.dir/src/main.cpp.o CMakeFiles/sim.dir/src/simulator.cpp.o CMakeFiles/sim.dir/src/aircraft.cpp.o CMakeFiles/sim.dir/src/state_machine.cpp.o -o sim
