@@ -1,5 +1,7 @@
 # C-130 Flight Simulator with Control Barrier Functions
 
+![Simulator Preview](img/cover.png)
+
 ## Overview
 
 This project implements a simplified 3D flight simulator inspired by a C-130-class aircraft, with a focus on safety-critical control using Control Barrier Functions (CBFs).
