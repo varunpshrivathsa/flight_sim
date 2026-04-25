@@ -1,1 +1,9 @@
 build/
+sim
+flight_log.csv
+viewer/state.json
+viewer/tiles/
+node_modules/
+.DS_Store
+.vscode/
+

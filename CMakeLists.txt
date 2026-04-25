@@ -7,7 +7,7 @@ include_directories(include)
 
 add_executable(sim
     src/main.cpp
-    src/simulator.cpp
     src/aircraft.cpp
-    src/state_machine.cpp
+    src/logger.cpp
+    src/visualizer.cpp
 )
