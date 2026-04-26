@@ -1,4 +1,5 @@
 #include "aircraft.hpp"
+#include "config.hpp"
 #include "logger.hpp"
 #include "visualizer.hpp"
 
@@ -43,36 +44,6 @@ double clampValue(double v, double lo, double hi) {
     return std::max(lo, std::min(v, hi));
 }
 
-// ---------------- Constants ----------------
-constexpr double g = 9.81;
-
-constexpr double kPitch = 14.0;
-constexpr double kThrottle = 2.5;
-constexpr double kRoll = 14.0;
-
-constexpr double minSpeed = 90.0;
-constexpr double maxSpeed = 380.0;
-
-constexpr double maxRoll = 35.0 * M_PI / 180.0;
-constexpr double maxPitchUp = 20.0 * M_PI / 180.0;
-constexpr double maxPitchDown = -15.0 * M_PI / 180.0;
-
-constexpr double yawRateScale = 3.5;
-
-// altitude limits
-constexpr double yMin = 1000.0;
-constexpr double yMax = 3000.0;
-
-// altitude HOCBF
-constexpr double alpha0 = 0.8;
-constexpr double alpha1 = 1.8;
-
-// no-fly-zone CBF
-constexpr double nfzAlpha = 3.5;
-constexpr double nfzBuffer = 1500.0;
-constexpr double nfzActivationDist = 6000.0;
-
-constexpr double eps = 1e-6;
 
 struct NoFlyZone {
     std::string name;
@@ -109,13 +80,13 @@ void readKeyboard(ControlInput& u, bool& running) {
 
             if (seq[0] == '[') {
                 if (seq[1] == 'A') {
-                    u.pitch_cmd = clampValue(u.pitch_cmd + 0.20, maxPitchDown, maxPitchUp);
+                    u.pitch_cmd = clampValue(u.pitch_cmd + 0.20, cfg::maxPitchDown, cfg::maxPitchUp);
                 } else if (seq[1] == 'B') {
-                    u.pitch_cmd = clampValue(u.pitch_cmd - 0.20, maxPitchDown, maxPitchUp);
+                    u.pitch_cmd = clampValue(u.pitch_cmd - 0.20, cfg::maxPitchDown, cfg::maxPitchUp);
                 } else if (seq[1] == 'C') {
-                    u.roll_cmd = clampValue(u.roll_cmd + 0.18, -maxRoll, maxRoll);
+                    u.roll_cmd = clampValue(u.roll_cmd + 0.18, -cfg::maxRoll, cfg::maxRoll);
                 } else if (seq[1] == 'D') {
-                    u.roll_cmd = clampValue(u.roll_cmd - 0.18, -maxRoll, maxRoll);
+                    u.roll_cmd = clampValue(u.roll_cmd - 0.18, -cfg::maxRoll, cfg::maxRoll);
                 }
             }
         }
@@ -128,52 +99,52 @@ double filterPitchCmdHOCBF(const AircraftState& s, const ControlInput& u) {
     const double p = s.pitch;
     const double v = s.v;
 
-    const double targetSpeed = minSpeed + u.throttle_cmd * (maxSpeed - minSpeed);
-    const double vdot = kThrottle * (targetSpeed - v);
+    const double targetSpeed = cfg::minSpeed + u.throttle_cmd * (cfg::maxSpeed - cfg::minSpeed);
+    const double vdot = cfg::kThrottle * (targetSpeed - v);
 
     const double ydot = v * std::sin(p);
 
-    const double a = vdot * std::sin(p) - v * std::cos(p) * kPitch * p;
-    const double b = v * std::cos(p) * kPitch;
+    const double a = vdot * std::sin(p) - v * std::cos(p) * cfg::kPitch * p;
+    const double b = v * std::cos(p) * cfg::kPitch;
 
-    double safeLower = maxPitchDown;
-    double safeUpper = maxPitchUp;
+    double safeLower = cfg::maxPitchDown;
+    double safeUpper = cfg::maxPitchUp;
 
-    if (std::abs(b) > eps) {
-        const double hFloor = y - yMin;
+    if (std::abs(b) > cfg::eps) {
+        const double hFloor = y - cfg::yMin;
         const double lowerFromFloor =
-            -(a + alpha1 * ydot + alpha0 * hFloor) / b;
+            -(a + cfg::alpha1 * ydot + cfg::alpha0 * hFloor) / b;
 
-        const double hCeil = yMax - y;
+        const double hCeil = cfg::yMax - y;
         const double upperFromCeiling =
-            (-a - alpha1 * ydot + alpha0 * hCeil) / b;
+            (-a - cfg::alpha1 * ydot + cfg::alpha0 * hCeil) / b;
 
         safeLower = std::max(safeLower, lowerFromFloor);
         safeUpper = std::min(safeUpper, upperFromCeiling);
     }
 
     if (safeLower > safeUpper) {
-        const double mid = clampValue(0.5 * (safeLower + safeUpper), maxPitchDown, maxPitchUp);
+        const double mid = clampValue(0.5 * (safeLower + safeUpper), cfg::maxPitchDown, cfg::maxPitchUp);
         safeLower = safeUpper = mid;
     }
 
-    const double raw = clampValue(u.pitch_cmd, maxPitchDown, maxPitchUp);
+    const double raw = clampValue(u.pitch_cmd, cfg::maxPitchDown, cfg::maxPitchUp);
     return clampValue(raw, safeLower, safeUpper);
 }
 
 // ---------------- No-fly-zone roll CBF ----------------
 double filterRollCmdNFZCBF(const AircraftState& s, const ControlInput& u) {
-    double filtered = clampValue(u.roll_cmd, -maxRoll, maxRoll);
+    double filtered = clampValue(u.roll_cmd, -cfg::maxRoll, cfg::maxRoll);
 
     for (const auto& zone : noFlyZones) {
-        const double safeRadius = zone.radius + nfzBuffer;
+        const double safeRadius = zone.radius + cfg::nfzBuffer;
 
         const double dx = s.x - zone.cx;
         const double dz = s.z - zone.cz;
         const double dist = std::sqrt(dx * dx + dz * dz);
         const double margin = dist - zone.radius;
 
-        if (dist > safeRadius + nfzActivationDist) {
+        if (dist > safeRadius + cfg::nfzActivationDist) {
             continue;
         }
 
@@ -188,7 +159,7 @@ double filterRollCmdNFZCBF(const AircraftState& s, const ControlInput& u) {
         const double hdot_nom = 2.0 * (dx * vx + dz * vz);
 
         // If already moving away and not close, do not interfere
-        if (hdot_nom + nfzAlpha * h >= 0.0 && margin > 300.0) {
+        if (hdot_nom + cfg::nfzAlpha * h >= 0.0 && margin > 300.0) {
             continue;
         }
 
@@ -202,15 +173,14 @@ double filterRollCmdNFZCBF(const AircraftState& s, const ControlInput& u) {
 
         for (int i = 0; i < N; i++) {
             const double candidate =
-                -maxRoll + (2.0 * maxRoll) * static_cast<double>(i) / static_cast<double>(N - 1);
+                -cfg::maxRoll + (2.0 * cfg::maxRoll) * static_cast<double>(i) / static_cast<double>(N - 1);
 
             // Predict roll response ahead, not just one 20 ms frame
-            double rollNext = s.roll + kRoll * (candidate - s.roll) * predictDt;
-            rollNext = clampValue(rollNext, -maxRoll, maxRoll);
+            double rollNext = s.roll + cfg::kRoll * (candidate - s.roll) * predictDt;
+            rollNext = clampValue(rollNext, -cfg::maxRoll, cfg::maxRoll);
 
-            // Predict yaw response from coordinated turn model
             const double yawRate =
-                yawRateScale * (g * std::tan(rollNext) / std::max(s.v, minSpeed));
+                cfg::yawRateScale * (cfg::g * std::tan(rollNext) / std::max(s.v, cfg::minSpeed));
 
             const double yawNext = s.yaw + yawRate * predictDt;
 
@@ -218,7 +188,7 @@ double filterRollCmdNFZCBF(const AircraftState& s, const ControlInput& u) {
             const double vzNext = s.v * std::sin(yawNext);
 
             const double hdot = 2.0 * (dx * vxNext + dz * vzNext);
-            const double cbfValue = hdot + nfzAlpha * h;
+            const double cbfValue = hdot + cfg::nfzAlpha * h;
 
             if (cbfValue >= 0.0) {
                 const double cost = std::abs(candidate - filtered);
@@ -237,11 +207,11 @@ double filterRollCmdNFZCBF(const AircraftState& s, const ControlInput& u) {
             double err = bearingToZone - s.yaw;
             while (err > M_PI)  err -= 2.0 * M_PI;
             while (err < -M_PI) err += 2.0 * M_PI;
-            filtered = (err > 0.0) ? -maxRoll : maxRoll;
+            filtered = (err > 0.0) ? -cfg::maxRoll : cfg::maxRoll;
         }
     }
 
-    return clampValue(filtered, -maxRoll, maxRoll);
+    return clampValue(filtered, -cfg::maxRoll, cfg::maxRoll);
 }
 
 } // namespace
