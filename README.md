@@ -14,7 +14,7 @@ The system allows manual control of the aircraft while automatically enforcing s
 
 ### 1. Unzip the Project
 
-cd flight_sim
+cd project_root__folder
 ```
 
 ### 2. Compile
