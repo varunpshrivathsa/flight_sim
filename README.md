@@ -1,4 +1,4 @@
-# C-130 Flight Simulator with Control Barrier Functions
+# C-130 Flight Simulator with Safe Autopilot Navigation
 
 ![Simulator Preview](img/cover.png)
 
